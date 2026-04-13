@@ -2,4 +2,6 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "npx serve . -l $PORT"
+startCommand = "node server.js"
+healthcheckPath = "/"
+healthcheckTimeout = 30
