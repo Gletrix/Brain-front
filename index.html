@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brain Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: black; color: white; font-family: monospace; height: 100vh; }
+    #hud { padding: 10px; }
+    #hud p { margin: 4px 0; }
+    button { margin-top: 6px; padding: 4px 12px; cursor: pointer; }
+    #grid {
+      position: relative;
+      width: 510px;
+      height: 510px;
+      margin: auto;
+      border: 1px solid white;
+    }
+    .dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <p>⏱ Time: <span id="time">0.0</span>s</p>
+    <p>💠 Brain points: <span id="points">3</span> <span id="status"></span></p>
+    <button onclick="restartGame()">Restart</button>
+  </div>
+  <div id="grid"></div>
+
+  <script>
+    const API_URL = window.API_URL || "http://localhost:8000";
+    const COLORS = ["yellow", "purple", "blue", "green", "red"];
+
+    function renderState(data) {
+      document.getElementById("time").textContent = data.time.toFixed(1);
+      document.getElementById("points").textContent = data.brain.points ?? "";
+      document.getElementById("status").textContent = data.brain.alive ? "" : "(dead)";
+
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+
+      // Brain
+      if (data.brain) {
+        const el = document.createElement("div");
+        el.className = "dot";
+        el.style.left = data.brain.x * 10 + "px";
+        el.style.top  = data.brain.y * 10 + "px";
+        el.style.backgroundColor = "white";
+        grid.appendChild(el);
+      }
+
+      // Disks
+      data.disks.forEach((d, i) => {
+        const el = document.createElement("div");
+        el.className = "dot";
+        el.style.left = d.x * 10 + "px";
+        el.style.top  = d.y * 10 + "px";
+        el.style.backgroundColor = COLORS[i % COLORS.length];
+        grid.appendChild(el);
+      });
+    }
+
+    setInterval(() => {
+      fetch(`${API_URL}/state`)
+        .then(r => r.json())
+        .then(renderState)
+        .catch(console.error);
+    }, 200);
+
+    function restartGame() {
+      fetch(`${API_URL}/restart`, { method: "POST" })
+        .then(() => renderState({ time: 0, brain: { x: 25, y: 25, points: 3, alive: true }, disks: [] }));
+    }
+  </script>
+</body>
+</html>
