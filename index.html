@@ -7,66 +7,159 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: black; color: white; font-family: monospace; }
-    #hud { padding: 10px; }
+    #hud {
+      width: 510px;
+      margin: 0 auto 10px auto;
+      padding: 10px 0 0 0;
+    }
     #hud p { margin: 4px 0; }
-    button { margin-top: 6px; padding: 4px 12px; cursor: pointer; }
+    #confidence-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0 12px 0;
+      flex-wrap: wrap;
+    }
+    #confidence-text {
+      white-space: nowrap;
+    }
+    #confidence-bar {
+      flex: 1;
+      min-width: 220px;
+      height: 12px;
+      background: #222;
+      border: 1px solid #666;
+      overflow: hidden;
+    }
+    #confidence-fill {
+      height: 100%;
+      width: 0%;
+      background: #f2f2f2;
+      transition: width 0.15s linear;
+    }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    button {
+      padding: 4px 12px;
+      cursor: pointer;
+      background: #111;
+      color: white;
+      border: 1px solid #666;
+    }
+    button:hover {
+      background: #1c1c1c;
+    }
     #grid {
       position: relative;
       width: 510px;
       height: 510px;
       margin: auto;
       border: 1px solid white;
+      background: #000;
     }
-    .dot { position: absolute; width: 10px; height: 10px; }
+    .dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+    }
+    .wall {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #c9c9c9;
+      border: 1px solid #f4f4f4;
+      box-shadow: inset 0 0 0 1px #a9a9a9;
+    }
+    .brain {
+      background: white;
+    }
   </style>
 </head>
 <body>
   <div id="hud">
     <p>⏱ Time: <span id="time">0.0</span>s</p>
-    <p>💠 Brain points: <span id="points">3</span> <span id="status"></span></p>
-    <button onclick="restartGame()">Restart</button>
+    <p>💠 Brain points: <span id="points">0</span> <span id="status"></span></p>
+
+    <div id="confidence-row">
+      <div id="confidence-text">Best move confidence: ░░░░░░░░░░ 0%</div>
+      <div id="confidence-bar"><div id="confidence-fill"></div></div>
+    </div>
+
+    <div class="btn-row">
+      <button onclick="restartGame()">Restart</button>
+      <button onclick="resetGame()">Reset</button>
+    </div>
   </div>
+
   <div id="grid"></div>
+
   <script>
     const API_URL = "%%API_URL%%";
     const COLORS = ["yellow", "purple", "blue", "green", "red"];
 
     function renderState(data) {
-      document.getElementById("time").textContent = data.time.toFixed(1);
-      document.getElementById("points").textContent = data.brain.points ?? "";
-      document.getElementById("status").textContent = data.brain.alive ? "" : "(dead)";
+      document.getElementById("time").textContent = (data.time ?? 0).toFixed(1);
+      document.getElementById("points").textContent = data.brain?.points ?? "";
+      document.getElementById("status").textContent = data.brain?.alive ? "" : "(dead)";
+
+      const confidence = Math.max(0, Math.min(100, Number(data.confidence ?? 0)));
+      const filled = Math.round(confidence / 10);
+      const barText = "█".repeat(filled) + "░".repeat(10 - filled);
+      document.getElementById("confidence-text").textContent =
+        `Best move confidence: ${barText} ${confidence}%`;
+      document.getElementById("confidence-fill").style.width = confidence + "%";
+
       const grid = document.getElementById("grid");
       grid.innerHTML = "";
-      if (data.brain) {
+
+      (data.walls || []).forEach((w) => {
         const el = document.createElement("div");
-        el.className = "dot";
-        el.style.left = data.brain.x * 10 + "px";
-        el.style.top  = data.brain.y * 10 + "px";
-        el.style.backgroundColor = "white";
+        el.className = "wall";
+        el.style.left = w.x * 10 + "px";
+        el.style.top = w.y * 10 + "px";
         grid.appendChild(el);
-      }
-      data.disks.forEach((d, i) => {
+      });
+
+      (data.disks || []).forEach((d, i) => {
         const el = document.createElement("div");
         el.className = "dot";
         el.style.left = d.x * 10 + "px";
-        el.style.top  = d.y * 10 + "px";
+        el.style.top = d.y * 10 + "px";
         el.style.backgroundColor = COLORS[i % COLORS.length];
         grid.appendChild(el);
       });
+
+      if (data.brain) {
+        const el = document.createElement("div");
+        el.className = "dot brain";
+        el.style.left = data.brain.x * 10 + "px";
+        el.style.top = data.brain.y * 10 + "px";
+        grid.appendChild(el);
+      }
     }
 
     setInterval(() => {
       fetch(API_URL + "/state")
-        .then(r => r.json())
+        .then((r) => r.json())
         .then(renderState)
-        .catch(e => console.error("fetch error:", e));
+        .catch((e) => console.error("fetch error:", e));
     }, 200);
 
     function restartGame() {
       fetch(API_URL + "/restart", { method: "POST" })
-        .then(r => r.json())
+        .then((r) => r.json())
         .then(() => console.log("restarted"))
-        .catch(e => console.error("restart error:", e));
+        .catch((e) => console.error("restart error:", e));
+    }
+
+    function resetGame() {
+      fetch(API_URL + "/reset", { method: "POST" })
+        .then((r) => r.json())
+        .then(() => console.log("reset"))
+        .catch((e) => console.error("reset error:", e));
     }
   </script>
 </body>
